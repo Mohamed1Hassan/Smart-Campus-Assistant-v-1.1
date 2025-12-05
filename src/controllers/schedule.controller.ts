@@ -475,4 +475,53 @@ export class ScheduleController {
       });
     }
   }
+  /**
+   * Get debug info for schedule
+   * GET /api/schedule/debug
+   */
+  static async debugSchedule(req: Request, res: Response): Promise<any> {
+    try {
+      const userId = parseInt((req as any).user.id);
+      console.log(`[Debug] Debugging schedule for user ${userId}`);
+
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { id: true, name: true, email: true, role: true }
+      });
+
+      const enrollments = await prisma.courseEnrollment.findMany({
+        where: { studentId: userId },
+        include: { course: true }
+      });
+
+      const courseIds = enrollments.map((e: any) => e.courseId);
+
+      const allSchedules = await prisma.schedule.findMany({
+        where: { courseId: { in: courseIds } },
+        include: { course: true }
+      });
+
+      const debugData = {
+        user,
+        enrollmentsCount: enrollments.length,
+        enrollments: enrollments.map((e: any) => ({
+          course: e.course.courseCode,
+          status: e.status
+        })),
+        schedulesCount: allSchedules.length,
+        schedules: allSchedules.map((s: any) => ({
+          course: s.course.courseCode,
+          day: s.dayOfWeek,
+          time: `${s.startTime}-${s.endTime}`,
+          isActive: s.isActive
+        }))
+      };
+
+      console.log('[Debug] Schedule Data:', JSON.stringify(debugData, null, 2));
+      res.json(debugData);
+    } catch (error: any) {
+      console.error('Error in debug endpoint:', error);
+      res.status(500).json({ message: 'Debug failed', error: error.message });
+    }
+  }
 }
