@@ -18,28 +18,13 @@ import { useToast } from '../components/common/ToastProvider';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function Schedule() {
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const [currentDay, setCurrentDay] = useState(getCurrentDay());
   const [filters, setFilters] = useState(loadScheduleFilters());
   const [searchTerm, setSearchTerm] = useState('');
   const { success, info } = useToast();
 
-  const [debugData, setDebugData] = useState<any>(null);
 
-  // Debug: Check database content directly
-  useEffect(() => {
-    const checkDebugData = async () => {
-      try {
-        const res = await apiClient.get('/schedule/debug');
-        console.log('🔍 [DEBUG ENDPOINT] Database Content:', res.data);
-        setDebugData(res.data);
-      } catch (err) {
-        console.error('❌ [DEBUG ENDPOINT] Failed to fetch debug info:', err);
-        setDebugData({ error: 'Failed to fetch debug info' });
-      }
-    };
-    checkDebugData();
-  }, []);
 
   // Fetch schedule data
   const { data: classes = [], isLoading: loading, error, refetch } = useQuery({
@@ -310,7 +295,7 @@ export default function Schedule() {
         </div>
 
         {/* Loading State */}
-        {loading && (
+        {(loading || authLoading) && (
           <div className="flex flex-col items-center justify-center py-20">
             <div className="w-12 h-12 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin mb-4"></div>
             <p className="text-gray-500 dark:text-gray-400 animate-pulse">Loading your schedule...</p>
@@ -318,7 +303,7 @@ export default function Schedule() {
         )}
 
         {/* Error State */}
-        {!loading && error && (
+        {!loading && !authLoading && error && (
           <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl p-6 text-center">
             <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-3" />
             <h3 className="text-lg font-semibold text-red-700 dark:text-red-400 mb-2">Failed to load schedule</h3>
@@ -333,7 +318,7 @@ export default function Schedule() {
         )}
 
         {/* Content */}
-        {!loading && !error && (
+        {!loading && !authLoading && !error && (
           <>
             {classes.length === 0 ? (
               <div className="space-y-8">
@@ -347,41 +332,6 @@ export default function Schedule() {
                   </p>
                 </div>
 
-                {/* Debug Info Section */}
-                <div className="p-6 border border-red-200 dark:border-red-900/30 rounded-2xl bg-red-50/50 dark:bg-red-900/10">
-                  <div className="flex items-center gap-3 mb-4">
-                    <AlertCircle className="w-6 h-6 text-red-500" />
-                    <div>
-                      <h4 className="text-lg font-semibold text-red-700 dark:text-red-400">Debug Information</h4>
-                      <p className="text-sm text-red-600 dark:text-red-300">
-                        Please share this information with technical support.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="grid gap-6 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <h5 className="font-medium text-sm text-gray-700 dark:text-gray-300">User Info</h5>
-                      <pre className="bg-white dark:bg-gray-950 p-4 rounded-xl text-xs overflow-auto border border-gray-200 dark:border-gray-800 font-mono">
-                        {JSON.stringify(debugData?.user || {}, null, 2)}
-                      </pre>
-                    </div>
-
-                    <div className="space-y-2">
-                      <h5 className="font-medium text-sm text-gray-700 dark:text-gray-300">Enrollments ({debugData?.enrollmentsCount || 0})</h5>
-                      <pre className="bg-white dark:bg-gray-950 p-4 rounded-xl text-xs overflow-auto border border-gray-200 dark:border-gray-800 font-mono max-h-60">
-                        {JSON.stringify(debugData?.enrollments || [], null, 2)}
-                      </pre>
-                    </div>
-
-                    <div className="space-y-2 md:col-span-2">
-                      <h5 className="font-medium text-sm text-gray-700 dark:text-gray-300">All Schedules Found ({debugData?.schedulesCount || 0})</h5>
-                      <pre className="bg-white dark:bg-gray-950 p-4 rounded-xl text-xs overflow-auto border border-gray-200 dark:border-gray-800 font-mono max-h-80">
-                        {JSON.stringify(debugData?.schedules || [], null, 2)}
-                      </pre>
-                    </div>
-                  </div>
-                </div>
               </div>
             ) : (
               <>
@@ -419,6 +369,6 @@ export default function Schedule() {
           </>
         )}
       </div>
-    </DashboardLayout>
+    </DashboardLayout >
   );
 }
