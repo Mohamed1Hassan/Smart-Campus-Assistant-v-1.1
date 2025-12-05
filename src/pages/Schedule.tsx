@@ -130,7 +130,8 @@ export default function Schedule() {
       return [];
     },
     enabled: !!user?.id,
-    staleTime: 5 * 60 * 1000, // 5 minutes cache
+    staleTime: 0, // Always fetch fresh data
+    refetchOnMount: true, // Force refetch when component mounts
   });
 
   useEffect(() => {
