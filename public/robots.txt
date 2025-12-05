@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://smart-campus-assistant-v-1-1.vercel.app/sitemap.xml
