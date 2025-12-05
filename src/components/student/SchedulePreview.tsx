@@ -203,7 +203,7 @@ export default function SchedulePreview({ classes, loading = false, onRefresh }:
         </div>
 
         {/* Lecture Statistics */}
-        <div className="grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div className="bg-white/60 dark:bg-gray-800/60 rounded-xl p-3 border border-gray-100 dark:border-gray-700/50 text-center">
             <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider block mb-1">Total</span>
             <span className="text-xl font-bold text-gray-900 dark:text-white">{totalLectures}</span>

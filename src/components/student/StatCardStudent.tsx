@@ -28,7 +28,7 @@ export default function StatCardStudent({
         y: -5,
         transition: { duration: 0.2 }
       }}
-      className="relative overflow-hidden bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-2xl shadow-lg border border-white/20 dark:border-gray-700/30 p-6 group"
+      className="relative overflow-hidden bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-2xl shadow-lg border border-white/20 dark:border-gray-700/30 p-4 sm:p-6 group"
       tabIndex={0}
       role="article"
       aria-label={`${title}: ${value}${subtitle ? ` ${subtitle}` : ''}`}
