@@ -50,11 +50,24 @@ export default function AttendanceChart({ records = [], overallAttendance }: Att
     fetchCourses();
   }, [isAuthenticated]);
 
-  // Helper function to get week number
-  function getWeekNumber(date: Date): number {
-    const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
-    const pastDaysOfYear = (date.getTime() - firstDayOfYear.getTime()) / 86400000;
-    return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
+  // Helper function to get week number relative to the first record date
+  // This ensures weeks start from 1, 2, 3... instead of absolute week of year (e.g., 49)
+  function getWeekNumber(date: Date, startDate?: Date): number {
+    const start = startDate || new Date(date.getFullYear(), 8, 1); // Default to Sept 1st if no start date
+    // Reset time part for accurate day calculation
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    const s = new Date(start);
+    s.setHours(0, 0, 0, 0);
+
+    // If date is before start, it might be from previous semester or early data
+    // Just return 1 in that case or handle appropriately
+    if (d < s) return 1;
+
+    const diffTime = Math.abs(d.getTime() - s.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    return Math.ceil((diffDays + 1) / 7);
   }
 
   // Calculate weekly attendance from real records
@@ -72,6 +85,20 @@ export default function AttendanceChart({ records = [], overallAttendance }: Att
       return emptyWeeks;
     }
 
+    // Find the earliest date in records to use as semester start
+    // Or default to Sept 1st of the current year if records are empty
+    let minDate = new Date();
+    if (records.length > 0) {
+      const dates = records
+        .map(r => new Date(r.date))
+        .filter(d => !isNaN(d.getTime()))
+        .sort((a, b) => a.getTime() - b.getTime());
+
+      if (dates.length > 0) {
+        minDate = dates[0];
+      }
+    }
+
     // Group records by week using date-based week calculation
     const weekMap = new Map<string, { present: number; total: number; late: number }>();
 
@@ -83,8 +110,8 @@ export default function AttendanceChart({ records = [], overallAttendance }: Att
           return;
         }
 
-        // Calculate week number from date
-        const weekNumber = getWeekNumber(date);
+        // Calculate week number from date, relative to minDate
+        const weekNumber = getWeekNumber(date, minDate);
         const weekKey = `Week ${weekNumber}`;
 
         const weekData = weekMap.get(weekKey) || { present: 0, total: 0, late: 0 };
@@ -232,12 +259,26 @@ export default function AttendanceChart({ records = [], overallAttendance }: Att
         return;
       }
 
+      // Find earliest date for this course to use as start date
+      let courseMinDate = new Date();
+      if (courseRecords.length > 0) {
+        const dates = courseRecords
+          .map(r => new Date(r.date))
+          .filter(d => !isNaN(d.getTime()))
+          .sort((a, b) => a.getTime() - b.getTime());
+
+        if (dates.length > 0) {
+          courseMinDate = dates[0];
+        }
+      }
+
       // Group records by week for this course
       const weekMap = new Map<string, { present: number; total: number }>();
 
       courseRecords.forEach(record => {
         const date = new Date(record.date);
-        const weekNumber = getWeekNumber(date);
+        // Use relative week number
+        const weekNumber = getWeekNumber(date, courseMinDate);
         const weekKey = `Week ${weekNumber}`;
 
         const weekData = weekMap.get(weekKey) || { present: 0, total: 0 };
