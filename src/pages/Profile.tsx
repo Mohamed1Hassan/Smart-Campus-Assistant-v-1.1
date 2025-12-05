@@ -33,6 +33,15 @@ const initialProfile = {
   emergencyContact: ""
 };
 
+const PROFILE_VALIDATION_RULES = {
+  name: [validators.required('Full name is required'), validators.minLength(2, 'Name must be at least 2 characters')],
+  email: [validators.required('Email is required'), validators.email()],
+  phone: [validators.required('Phone number is required'), validators.phone()],
+  dob: [validators.required('Date of birth is required'), validators.date()],
+  address: [validators.required('Address is required'), validators.minLength(10, 'Please provide a complete address')],
+  emergencyContact: [validators.required('Emergency contact is required'), validators.minLength(5, 'Please provide full contact information')],
+};
+
 export default function Profile() {
   const { user, isAuthenticated } = useAuth();
   const { success: showSuccess, error: showError, info: showInfo, warning: showWarning } = useToast();
@@ -99,14 +108,7 @@ export default function Profile() {
       address: authProfileFallback.address || '',
       emergencyContact: authProfileFallback.emergencyContact || '',
     },
-    validationRules: {
-      name: [validators.required('Full name is required'), validators.minLength(2, 'Name must be at least 2 characters')],
-      email: [validators.required('Email is required'), validators.email()],
-      phone: [validators.required('Phone number is required'), validators.phone()],
-      dob: [validators.required('Date of birth is required'), validators.date()],
-      address: [validators.required('Address is required'), validators.minLength(10, 'Please provide a complete address')],
-      emergencyContact: [validators.required('Emergency contact is required'), validators.minLength(5, 'Please provide full contact information')],
-    },
+    validationRules: PROFILE_VALIDATION_RULES,
     onSubmit: async (values) => {
       setIsLoading(true);
       setSaveStatus('idle');
