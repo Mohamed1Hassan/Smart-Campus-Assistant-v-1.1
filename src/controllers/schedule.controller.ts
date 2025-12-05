@@ -349,6 +349,7 @@ export class ScheduleController {
       let dayOfWeek: number;
       if (req.query.dayOfWeek !== undefined) {
         dayOfWeek = parseInt(req.query.dayOfWeek as string);
+
         if (isNaN(dayOfWeek) || dayOfWeek < 0 || dayOfWeek > 6) {
           // Fallback to server time if invalid
           const today = new Date();

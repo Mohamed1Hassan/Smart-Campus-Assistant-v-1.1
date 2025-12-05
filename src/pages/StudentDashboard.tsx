@@ -104,7 +104,7 @@ export default function StudentDashboard() {
 
   // 2. Fetch Schedule
   const { data: todaySchedule = [], isLoading: scheduleLoading } = useQuery({
-    queryKey: ['student-schedule', user?.id],
+    queryKey: ['student-schedule-today', user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
 
