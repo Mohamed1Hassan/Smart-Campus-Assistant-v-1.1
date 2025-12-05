@@ -548,17 +548,37 @@ export class UserService {
         }
       });
 
-      // 4. Get attendance records
+      // 4. Calculate attendance percentage correctly (including missed classes)
+      const now = new Date();
+
+      // Calculate total expected sessions for enrolled courses
+      let totalExpectedSessions = 0;
+      for (const enrollment of enrollments) {
+        const count = await prisma.qRCode.count({
+          where: {
+            courseId: enrollment.courseId,
+            validTo: { lt: now },
+            isActive: true,
+            validFrom: { gte: enrollment.enrolledAt }
+          }
+        });
+        totalExpectedSessions += count;
+      }
+
+      // Get attendance records for these courses
       const attendanceRecords = await prisma.attendanceRecord.findMany({
-        where: { studentId: studentId }
+        where: {
+          studentId: studentId,
+          courseId: { in: enrollments.map(e => e.courseId) }
+        }
       });
 
-      const totalSessions = attendanceRecords.length;
       const presentSessions = attendanceRecords.filter(r =>
         r.status === 'PRESENT' || r.status === 'LATE'
       ).length;
-      const attendancePercentage = totalSessions > 0
-        ? Math.round((presentSessions / totalSessions) * 100)
+
+      const attendancePercentage = totalExpectedSessions > 0
+        ? Math.round((presentSessions / totalExpectedSessions) * 100)
         : 0;
 
       // 5. Calculate today's upcoming classes from Schedule
