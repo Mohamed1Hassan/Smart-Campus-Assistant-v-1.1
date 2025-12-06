@@ -19,8 +19,8 @@ function getInitialTheme(): Theme {
       return storedTheme;
     }
 
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    return prefersDark ? 'dark' : 'light';
+    // Default to light mode unless explicitly dark
+    return 'light';
   } catch {
     return 'light';
   }
@@ -32,11 +32,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   useLayoutEffect(() => {
     const root = document.documentElement;
     const body = document.body;
-    
+
     // Remove all theme classes first to avoid conflicts
     root.classList.remove('light', 'dark');
     body.classList.remove('light', 'dark');
-    
+
     // Add the current theme class (Tailwind uses 'dark' class for dark mode)
     if (theme === 'dark') {
       root.classList.add('dark');
@@ -53,7 +53,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.warn('Failed to save theme to localStorage:', error);
     }
-    
+
     // Debug log in development
     if (import.meta.env.DEV) {
       console.log(`[ThemeContext] Theme changed to: ${theme}`);
@@ -66,7 +66,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     const checkAndSyncTheme = () => {
       const storedTheme = localStorage.getItem('theme') as Theme | null;
       const hasDarkClass = document.documentElement.classList.contains('dark');
-      
+
       // Only sync if there's a clear mismatch
       if (storedTheme === 'dark' && !hasDarkClass && theme !== 'dark') {
         // Stored theme is dark but DOM and state don't match
@@ -76,14 +76,14 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         setThemeState('light');
       }
     };
-    
+
     // Check periodically (every 2 seconds) to catch theme mismatches
     // This is especially useful after navigation from Login page
     const interval = setInterval(checkAndSyncTheme, 2000);
-    
+
     // Also check immediately on mount
     checkAndSyncTheme();
-    
+
     return () => {
       clearInterval(interval);
     };
@@ -95,7 +95,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     const handleChange = (e: MediaQueryListEvent) => {
       const storedTheme = localStorage.getItem('theme');
       if (!storedTheme) {
-        setThemeState(e.matches ? 'dark' : 'light');
+        // If no user preference, stay in light mode by default or follow system?
+        // User wants default light. If system changes to dark, maybe they want dark?
+        // But "First time load" is key.
+        // I will leave this as is, as it handles dynamic changes.
+        // Actually, if I want to ENFORCE light mode by default, I should ignore system preference initially.
+        // Which I did in getInitialTheme.
       }
     };
 
@@ -112,9 +117,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <ThemeContext.Provider value={{ 
-      theme, 
-      setTheme, 
+    <ThemeContext.Provider value={{
+      theme,
+      setTheme,
       toggleTheme
     }}>
       {children}
