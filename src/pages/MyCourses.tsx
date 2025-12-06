@@ -60,7 +60,7 @@ export default function MyCourses() {
           name: course.courseName,
           code: course.courseCode,
           studentCount: course._count?.enrollments ?? (Array.isArray(course.enrollments) ? course.enrollments.length : (course.enrolledCount || 0)),
-          maxStudents: course.capacity || 50,
+          maxStudents: course.capacity || 500,
           scheduleTime: course.schedules?.[0]
             ? `${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][course.schedules[0].dayOfWeek]} ${course.schedules[0].startTime}`
             : undefined,
