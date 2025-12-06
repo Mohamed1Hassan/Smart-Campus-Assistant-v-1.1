@@ -1,15 +1,16 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { MessageSquare, Bot, Sparkles, Brain, Globe, Zap } from 'lucide-react';
+import { MessageSquare, Bot, Sparkles, Brain, Globe, Zap, XCircle } from 'lucide-react';
 import DashboardLayout from '../components/common/DashboardLayout';
 import ChatContainer from '../components/student/chatbot/ChatContainer';
 import QuickPrompts from '../components/student/chatbot/QuickPrompts';
 import { useChat } from '../components/student/chatbot/hooks/useChat';
 import { useAuth } from '../contexts/AuthContext';
+import { toast } from 'react-hot-toast';
 
 export default function StudentChatbot() {
   const { user } = useAuth();
-  const { sendMessage } = useChat();
+  const { sendMessage, endSession } = useChat();
   const [showQuickPrompts, setShowQuickPrompts] = useState(true);
 
   // Reset scroll position to top when page loads
@@ -18,7 +19,7 @@ export default function StudentChatbot() {
     const timer = setTimeout(() => {
       window.scrollTo({ top: 0, behavior: "instant" });
     }, 100);
-    
+
     return () => clearTimeout(timer);
   }, []);
 
@@ -27,7 +28,7 @@ export default function StudentChatbot() {
   };
 
   return (
-    <DashboardLayout 
+    <DashboardLayout
       userName={user ? `${user.firstName} ${user.lastName}` : "Student"}
       userType="student"
     >
@@ -36,14 +37,29 @@ export default function StudentChatbot() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="mb-8"
+        className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4"
       >
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-textDark mb-2">
-          Smart Campus Assistant
-        </h1>
-        <p className="text-gray-600 dark:text-mutedDark">
-          Your AI-powered university companion for all academic needs
-        </p>
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-textDark mb-2">
+            Smart Campus Assistant
+          </h1>
+          <p className="text-gray-600 dark:text-mutedDark">
+            Your AI-powered university companion for all academic needs
+          </p>
+        </div>
+
+        <button
+          onClick={() => {
+            if (window.confirm('Are you sure you want to end this session? This will clear your chat history.')) {
+              endSession();
+              toast.success('Session ended');
+            }
+          }}
+          className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors self-start md:self-center"
+        >
+          <XCircle className="w-5 h-5" />
+          <span className="font-medium">End Session</span>
+        </button>
       </motion.div>
 
       {/* Quick Stats Cards */}
@@ -170,7 +186,7 @@ export default function StudentChatbot() {
             {showQuickPrompts ? 'Hide' : 'Show'} Quick Prompts
           </span>
         </motion.button>
-        
+
         {showQuickPrompts && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -201,7 +217,7 @@ export default function StudentChatbot() {
             Get instant answers from our knowledge base or AI-powered responses
           </p>
         </div>
-        
+
         <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-200 dark:border-green-800">
           <div className="flex items-center gap-2 mb-2">
             <div className="w-2 h-2 bg-green-500 rounded-full" />
@@ -213,7 +229,7 @@ export default function StudentChatbot() {
             Supports both English and Arabic with automatic language detection
           </p>
         </div>
-        
+
         <div className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-xl border border-purple-200 dark:border-purple-800">
           <div className="flex items-center gap-2 mb-2">
             <div className="w-2 h-2 bg-purple-500 rounded-full" />

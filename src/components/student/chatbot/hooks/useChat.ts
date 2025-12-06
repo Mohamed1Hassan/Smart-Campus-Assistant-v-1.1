@@ -16,6 +16,7 @@ interface UseChatReturn {
   isLoading: boolean;
   sendMessage: (text: string) => Promise<void>;
   clearChat: () => void;
+  endSession: () => void;
   exportChat: () => void;
 }
 
@@ -230,6 +231,14 @@ export const useChat = (): UseChatReturn => {
     }
   }, [userStorageKey]);
 
+  const endSession = useCallback(() => {
+    //Clear local storage
+    clearChat();
+    // Add a system message to indicate session ended (optional, or just clear)
+    // For now, we just clear as per "Close" semantics often implying reset
+    // You could also add a "Session Ended" message if desired, but clearing is cleaner for "Start New"
+  }, [clearChat]);
+
   const exportChat = useCallback(() => {
     const chatText = messages.map(msg => {
       const timestamp = msg.timestamp.toLocaleString();
@@ -253,6 +262,7 @@ export const useChat = (): UseChatReturn => {
     isLoading,
     sendMessage,
     clearChat,
+    endSession,
     exportChat
   };
 };
