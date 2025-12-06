@@ -97,11 +97,26 @@ export default function ProfessorAttendanceSettings() {
     }
   });
 
-  // Mock load settings
-  useEffect(() => {
-    // In a real app, fetch from API here
-    // setSettings(apiData);
+  // Load settings from API
+  const loadSettings = useCallback(async () => {
+    try {
+      const response = await apiClient.get('/professor/settings');
+      if (response.success && response.data) {
+        // Merge API data with default state to ensure all fields exist
+        setSettings(prev => ({
+          ...prev,
+          ...response.data
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to load settings:', error);
+      // Don't show error toast on initial load to avoid annoyance if it's just missing settings
+    }
   }, []);
+
+  useEffect(() => {
+    loadSettings();
+  }, [loadSettings]);
 
   const handleSettingChange = (category: string, setting: string, value: any) => {
     setSettings(prev => ({
@@ -158,9 +173,19 @@ export default function ProfessorAttendanceSettings() {
 
   const handleSave = async () => {
     setIsSaving(true);
-    await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API
-    setIsSaving(false);
-    success('Settings saved successfully');
+    try {
+      const response = await apiClient.put('/professor/settings', settings);
+      if (response.success) {
+        success('Settings saved successfully');
+      } else {
+        throw new Error(response.message || 'Failed to save settings');
+      }
+    } catch (error: any) {
+      console.error('Error saving settings:', error);
+      showError(error.message || 'Failed to save settings');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (

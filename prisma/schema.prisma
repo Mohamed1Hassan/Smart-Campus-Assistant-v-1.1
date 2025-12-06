@@ -29,12 +29,49 @@ model User {
   enrollments          CourseEnrollment[]
   coursesCreated       Course[]              @relation("CourseCreator")
   notificationSettings NotificationSettings?
+  professorSettings    ProfessorSettings?
   notifications        Notification[]
   qrCodesCreated       QRCode[]              @relation("QRCodeCreator")
   schedules            Schedule[]
   refreshTokens        RefreshToken[]
 
   @@map("users")
+}
+
+model ProfessorSettings {
+  id                           Int      @id @default(autoincrement())
+  professorId                  Int      @unique
+  // Security
+  defaultGracePeriod           Int      @default(5)
+  defaultMaxAttempts           Int      @default(3)
+  defaultRiskThreshold         Int      @default(70)
+  
+  // Location
+  defaultRadius                Int      @default(50)
+  enableGeofencing             Boolean  @default(true)
+  requireLocationAccuracy      Boolean  @default(true)
+  
+  // Device
+  enableDeviceFingerprinting   Boolean  @default(true)
+  enableDeviceSharingDetection Boolean  @default(true)
+  
+  // Photo
+  requirePhotoVerification     Boolean  @default(false)
+  enableFaceDetection          Boolean  @default(false)
+  
+  // Time
+  enableTimeValidation         Boolean  @default(true)
+  
+  // Notifications
+  enableEmailNotifications     Boolean  @default(true)
+  enablePushNotifications      Boolean  @default(true)
+  notifyOnFraudDetection       Boolean  @default(true)
+  
+  updatedAt                    DateTime @updatedAt
+  
+  professor                    User     @relation(fields: [professorId], references: [id], onDelete: Cascade)
+
+  @@map("professor_settings")
 }
 
 model Course {
