@@ -430,25 +430,51 @@ export default function ProfessorAttendanceCreate() {
 
                         <button
                           onClick={() => {
-                            if (navigator.geolocation) {
-                              navigator.geolocation.getCurrentPosition(
-                                (pos) => {
-                                  handleInputChange('location.latitude', pos.coords.latitude);
-                                  handleInputChange('location.longitude', pos.coords.longitude);
-
-                                  if (pos.coords.accuracy > 100) {
-                                    showWarning(`Low accuracy detected (${Math.round(pos.coords.accuracy)}m). Consider entering coordinates manually from your phone.`);
-                                  } else {
-                                    success(`Location updated (Accuracy: ${Math.round(pos.coords.accuracy)}m)`);
-                                  }
-                                },
-                                (err) => {
-                                  console.error('Location error:', err);
-                                  showError('Failed to get location. Please enter manually.');
-                                },
-                                { enableHighAccuracy: true }
-                              );
+                            if (!navigator.geolocation) {
+                              showError('Geolocation is not supported by your browser');
+                              return;
                             }
+
+                            const options = {
+                              enableHighAccuracy: true,
+                              timeout: 15000,
+                              maximumAge: 0
+                            };
+
+                            const successCallback = (pos: GeolocationPosition) => {
+                              handleInputChange('location.latitude', pos.coords.latitude);
+                              handleInputChange('location.longitude', pos.coords.longitude);
+
+                              if (pos.coords.accuracy > 100) {
+                                showWarning(`Low accuracy detected (${Math.round(pos.coords.accuracy)}m). Try moving to an open area or entering coordinates manually.`);
+                              } else {
+                                success(`Location updated (Accuracy: ${Math.round(pos.coords.accuracy)}m)`);
+                              }
+                            };
+
+                            const errorCallback = (err: GeolocationPositionError) => {
+                              console.error('Location error:', err);
+                              let message = 'Failed to get location.';
+
+                              switch (err.code) {
+                                case 1: // PERMISSION_DENIED
+                                  message = 'Location permission denied. Please enable location access in your browser settings (click the lock icon in the URL bar).';
+                                  // Could trigger a modal or specialized UI here if needed
+                                  break;
+                                case 2: // POSITION_UNAVAILABLE
+                                  message = 'Location information is unavailable. Check your device GPS settings.';
+                                  break;
+                                case 3: // TIMEOUT
+                                  message = 'Location request timed out. Please retry in a better signal area.';
+                                  break;
+                                default:
+                                  message = `Location error: ${err.message}`;
+                              }
+                              showError(message);
+                            };
+
+                            info('Getting high-accuracy location... Please wait.');
+                            navigator.geolocation.getCurrentPosition(successCallback, errorCallback, options);
                           }}
                           className="text-sm text-purple-600 hover:text-purple-700 font-medium flex items-center gap-1"
                         >
@@ -631,6 +657,6 @@ export default function ProfessorAttendanceCreate() {
           </div>
         </div>
       </div>
-    </DashboardLayout>
+    </DashboardLayout >
   );
 }
