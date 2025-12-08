@@ -943,15 +943,19 @@ export default function StudentAttendance() {
           status: response.data.status === 'PRESENT' || response.data.status === 'LATE' ? 'SUCCESS' : 'FAILED'
         };
 
-        // Refetch history to show the new record
-        await refetchHistory();
-
         setSuccessMessage({
           title: "Attendance Recorded!",
           subtitle: "You have successfully checked in for this session."
         });
         setShowSuccess(true);
         updateVerificationStep(4, 'COMPLETED');
+
+        // Refetch history in background
+        try {
+          await refetchHistory();
+        } catch (e) {
+          console.error("Failed to refresh history", e);
+        }
       } else {
         throw new Error(response.message || 'Failed to mark attendance');
       }
@@ -967,24 +971,14 @@ export default function StudentAttendance() {
           subtitle: "You have already checked in for this session."
         });
         setShowSuccess(true);
-
-        // Mark as success anyway so UI updates
-        const attendanceRecord: AttendanceRecord = {
-          id: `att-${Date.now()}`, // temporary ID
-          sessionId: scanResult,
-          courseName: currentSession.courseName,
-          timestamp: new Date(),
-          location: locationData,
-          device: deviceFingerprint,
-          photo: photoData || undefined,
-          securityScore: 100,
-          fraudWarnings: [],
-          status: 'SUCCESS'
-        };
+        updateVerificationStep(4, 'COMPLETED');
 
         // Refetch history to show the actual existing record
-        await refetchHistory();
-        updateVerificationStep(4, 'COMPLETED'); // Provide visual completion
+        try {
+          await refetchHistory();
+        } catch (e) {
+          console.error("Failed to refresh history", e);
+        }
         return;
       }
 
