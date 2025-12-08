@@ -435,7 +435,8 @@ export default function ProfessorAttendanceCreate() {
                               return;
                             }
 
-                            const getAccuratePosition = (options: PositionOptions, maxRetries = 3, targetAccuracy = 50): Promise<GeolocationPosition> => {
+                            // Aggressive location fetcher
+                            const getAccuratePosition = (options: PositionOptions, maxRetries = 5, targetAccuracy = 50): Promise<GeolocationPosition> => {
                               return new Promise((resolve, reject) => {
                                 let tryCount = 0;
                                 let bestPosition: GeolocationPosition | null = null;
@@ -445,7 +446,7 @@ export default function ProfessorAttendanceCreate() {
                                   const isLastAttempt = tryCount >= maxRetries;
 
                                   if (tryCount > 1) {
-                                    info(`Refining location... (Attempt ${tryCount}/${maxRetries})`);
+                                    info(`Optimizing location... (Attempt ${tryCount}/${maxRetries})`);
                                   } else {
                                     info('Getting high-accuracy location...');
                                   }
@@ -465,7 +466,7 @@ export default function ProfessorAttendanceCreate() {
 
                                       // If not accurate enough and we have retries left, try again
                                       if (!isLastAttempt) {
-                                        setTimeout(attempt, 1500); // Wait 1.5s before retry
+                                        setTimeout(attempt, 2500); // Wait 2.5s for GPS warm-up
                                       } else {
                                         // Out of retries, return the best we found
                                         resolve(bestPosition!);
@@ -474,9 +475,8 @@ export default function ProfessorAttendanceCreate() {
                                     (err) => {
                                       // On error, if we have retries, try again
                                       if (!isLastAttempt) {
-                                        setTimeout(attempt, 1500);
+                                        setTimeout(attempt, 2500);
                                       } else {
-                                        // If we have a best position from previous attempts (unlikely but possible), return it
                                         if (bestPosition) resolve(bestPosition);
                                         else reject(err);
                                       }
@@ -492,18 +492,21 @@ export default function ProfessorAttendanceCreate() {
                             try {
                               const pos = await getAccuratePosition({
                                 enableHighAccuracy: true,
-                                timeout: 10000,
+                                timeout: 15000,
                                 maximumAge: 0
                               });
 
                               handleInputChange('location.latitude', pos.coords.latitude);
                               handleInputChange('location.longitude', pos.coords.longitude);
 
-                              // Check if the final result is good enough
-                              if (pos.coords.accuracy > 100) {
-                                showWarning(`Location set, but accuracy is low (${Math.round(pos.coords.accuracy)}m). Consider entering coordinates manually.`);
+                              const acc = Math.round(pos.coords.accuracy);
+
+                              if (acc > 2000) {
+                                showWarning(`Weak Signal (${acc}m). This looks like an IP-based location. For best results, use a mobile phone with GPS enabled.`);
+                              } else if (acc > 100) {
+                                showWarning(`Location set, but accuracy is low (${acc}m). Consider entering coordinates manually.`);
                               } else {
-                                success(`Location updated (Accuracy: ${Math.round(pos.coords.accuracy)}m)`);
+                                success(`Location updated (Accuracy: ${acc}m)`);
                               }
                             } catch (error: any) {
                               console.error('Location error:', error);
