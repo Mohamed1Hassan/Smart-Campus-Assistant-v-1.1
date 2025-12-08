@@ -946,7 +946,9 @@ export default function StudentAttendance() {
     } catch (error: any) {
       console.error('Failed to submit attendance:', error);
 
-      if (error.response?.status === 409) {
+      const is409 = error.response?.status === 409 || error.toString().includes('409') || error.message?.includes('409');
+
+      if (is409) {
         // Attendance already marked
         alert("Attendance already marked for this session.");
 
