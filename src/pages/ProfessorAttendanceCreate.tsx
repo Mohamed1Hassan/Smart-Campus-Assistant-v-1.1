@@ -429,52 +429,90 @@ export default function ProfessorAttendanceCreate() {
                         </div>
 
                         <button
-                          onClick={() => {
+                          onClick={async () => {
                             if (!navigator.geolocation) {
                               showError('Geolocation is not supported by your browser');
                               return;
                             }
 
-                            const options = {
-                              enableHighAccuracy: true,
-                              timeout: 15000,
-                              maximumAge: 0
+                            const getAccuratePosition = (options: PositionOptions, maxRetries = 3, targetAccuracy = 50): Promise<GeolocationPosition> => {
+                              return new Promise((resolve, reject) => {
+                                let tryCount = 0;
+                                let bestPosition: GeolocationPosition | null = null;
+
+                                const attempt = () => {
+                                  tryCount++;
+                                  const isLastAttempt = tryCount >= maxRetries;
+
+                                  if (tryCount > 1) {
+                                    info(`Refining location... (Attempt ${tryCount}/${maxRetries})`);
+                                  } else {
+                                    info('Getting high-accuracy location...');
+                                  }
+
+                                  navigator.geolocation.getCurrentPosition(
+                                    (pos) => {
+                                      // If we hit target accuracy, return immediately
+                                      if (pos.coords.accuracy <= targetAccuracy) {
+                                        resolve(pos);
+                                        return;
+                                      }
+
+                                      // Keep track of best position seen so far
+                                      if (!bestPosition || pos.coords.accuracy < bestPosition.coords.accuracy) {
+                                        bestPosition = pos;
+                                      }
+
+                                      // If not accurate enough and we have retries left, try again
+                                      if (!isLastAttempt) {
+                                        setTimeout(attempt, 1500); // Wait 1.5s before retry
+                                      } else {
+                                        // Out of retries, return the best we found
+                                        resolve(bestPosition!);
+                                      }
+                                    },
+                                    (err) => {
+                                      // On error, if we have retries, try again
+                                      if (!isLastAttempt) {
+                                        setTimeout(attempt, 1500);
+                                      } else {
+                                        // If we have a best position from previous attempts (unlikely but possible), return it
+                                        if (bestPosition) resolve(bestPosition);
+                                        else reject(err);
+                                      }
+                                    },
+                                    options
+                                  );
+                                };
+
+                                attempt();
+                              });
                             };
 
-                            const successCallback = (pos: GeolocationPosition) => {
+                            try {
+                              const pos = await getAccuratePosition({
+                                enableHighAccuracy: true,
+                                timeout: 10000,
+                                maximumAge: 0
+                              });
+
                               handleInputChange('location.latitude', pos.coords.latitude);
                               handleInputChange('location.longitude', pos.coords.longitude);
 
+                              // Check if the final result is good enough
                               if (pos.coords.accuracy > 100) {
-                                showWarning(`Low accuracy detected (${Math.round(pos.coords.accuracy)}m). Try moving to an open area or entering coordinates manually.`);
+                                showWarning(`Location set, but accuracy is low (${Math.round(pos.coords.accuracy)}m). Consider entering coordinates manually.`);
                               } else {
                                 success(`Location updated (Accuracy: ${Math.round(pos.coords.accuracy)}m)`);
                               }
-                            };
-
-                            const errorCallback = (err: GeolocationPositionError) => {
-                              console.error('Location error:', err);
+                            } catch (error: any) {
+                              console.error('Location error:', error);
                               let message = 'Failed to get location.';
-
-                              switch (err.code) {
-                                case 1: // PERMISSION_DENIED
-                                  message = 'Location permission denied. Please enable location access in your browser settings (click the lock icon in the URL bar).';
-                                  // Could trigger a modal or specialized UI here if needed
-                                  break;
-                                case 2: // POSITION_UNAVAILABLE
-                                  message = 'Location information is unavailable. Check your device GPS settings.';
-                                  break;
-                                case 3: // TIMEOUT
-                                  message = 'Location request timed out. Please retry in a better signal area.';
-                                  break;
-                                default:
-                                  message = `Location error: ${err.message}`;
-                              }
+                              if (error.code === 1) message = 'Location permission denied. Please allow access.';
+                              else if (error.code === 2) message = 'Location unavailable. Check GPS.';
+                              else if (error.code === 3) message = 'Location timed out.';
                               showError(message);
-                            };
-
-                            info('Getting high-accuracy location... Please wait.');
-                            navigator.geolocation.getCurrentPosition(successCallback, errorCallback, options);
+                            }
                           }}
                           className="text-sm text-purple-600 hover:text-purple-700 font-medium flex items-center gap-1"
                         >

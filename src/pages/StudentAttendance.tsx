@@ -19,6 +19,7 @@ import {
   AlertCircle,
   Activity
 } from 'lucide-react';
+import { SuccessAnimation } from '@/components/common/SuccessAnimation';
 import DashboardLayout from '@/components/common/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -140,6 +141,10 @@ export default function StudentAttendance() {
   const [showSettings, setShowSettings] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+
+  // Success Animation State
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [successMessage, setSuccessMessage] = useState({ title: '', subtitle: '' });
   const [connectionStatus, setConnectionStatus] = useState<'ONLINE' | 'OFFLINE' | 'POOR'>('ONLINE');
 
 
@@ -940,6 +945,13 @@ export default function StudentAttendance() {
 
         // Refetch history to show the new record
         await refetchHistory();
+
+        setSuccessMessage({
+          title: "Attendance Recorded!",
+          subtitle: "You have successfully checked in for this session."
+        });
+        setShowSuccess(true);
+        updateVerificationStep(4, 'COMPLETED');
       } else {
         throw new Error(response.message || 'Failed to mark attendance');
       }
@@ -950,7 +962,11 @@ export default function StudentAttendance() {
 
       if (is409) {
         // Attendance already marked
-        alert("Attendance already marked for this session.");
+        setSuccessMessage({
+          title: "Attendance Already Marked!",
+          subtitle: "You have already checked in for this session."
+        });
+        setShowSuccess(true);
 
         // Mark as success anyway so UI updates
         const attendanceRecord: AttendanceRecord = {
@@ -1426,6 +1442,13 @@ export default function StudentAttendance() {
       <HelpSupportModal
         isOpen={showHelp}
         onClose={() => setShowHelp(false)}
+      />
+
+      <SuccessAnimation
+        isVisible={showSuccess}
+        onClose={() => setShowSuccess(false)}
+        message={successMessage.title}
+        subMessage={successMessage.subtitle}
       />
     </DashboardLayout>
   );
