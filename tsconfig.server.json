@@ -26,7 +26,8 @@
   },
   "include": [
     "server/**/*",
-    "config/**/*"
+    "config/**/*",
+    "src/**/*"
   ],
   "exclude": [
     "node_modules",

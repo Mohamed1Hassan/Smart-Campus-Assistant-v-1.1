@@ -435,66 +435,49 @@ export default function ProfessorAttendanceCreate() {
                               return;
                             }
 
-                            // Aggressive location fetcher
-                            const getAccuratePosition = (options: PositionOptions, maxRetries = 5, targetAccuracy = 50): Promise<GeolocationPosition> => {
+                            // Smart location fetcher using watchPosition (better for warming up GPS)
+                            const getAccuratePosition = (options: PositionOptions, targetAccuracy = 50, timeoutMs = 15000): Promise<GeolocationPosition> => {
                               return new Promise((resolve, reject) => {
-                                let tryCount = 0;
                                 let bestPosition: GeolocationPosition | null = null;
+                                info('Locating... Please wait up to 15s for best signal.');
 
-                                const attempt = () => {
-                                  tryCount++;
-                                  const isLastAttempt = tryCount >= maxRetries;
+                                const watchId = navigator.geolocation.watchPosition(
+                                  (pos) => {
+                                    // Update best position
+                                    if (!bestPosition || pos.coords.accuracy < bestPosition.coords.accuracy) {
+                                      bestPosition = pos;
+                                    }
 
-                                  if (tryCount > 1) {
-                                    info(`Optimizing location... (Attempt ${tryCount}/${maxRetries})`);
+                                    // If we hit target accuracy, finish early
+                                    if (pos.coords.accuracy <= targetAccuracy) {
+                                      navigator.geolocation.clearWatch(watchId);
+                                      resolve(pos);
+                                    }
+                                  },
+                                  (err) => {
+                                    console.warn('GPS Watch Error:', err);
+                                  },
+                                  options
+                                );
+
+                                // Set timeout to eventually stop and return best found
+                                setTimeout(() => {
+                                  navigator.geolocation.clearWatch(watchId);
+                                  if (bestPosition) {
+                                    resolve(bestPosition);
                                   } else {
-                                    info('Getting high-accuracy location...');
+                                    reject(new Error("Timeout: Could not get any location"));
                                   }
-
-                                  navigator.geolocation.getCurrentPosition(
-                                    (pos) => {
-                                      // If we hit target accuracy, return immediately
-                                      if (pos.coords.accuracy <= targetAccuracy) {
-                                        resolve(pos);
-                                        return;
-                                      }
-
-                                      // Keep track of best position seen so far
-                                      if (!bestPosition || pos.coords.accuracy < bestPosition.coords.accuracy) {
-                                        bestPosition = pos;
-                                      }
-
-                                      // If not accurate enough and we have retries left, try again
-                                      if (!isLastAttempt) {
-                                        setTimeout(attempt, 2500); // Wait 2.5s for GPS warm-up
-                                      } else {
-                                        // Out of retries, return the best we found
-                                        resolve(bestPosition!);
-                                      }
-                                    },
-                                    (err) => {
-                                      // On error, if we have retries, try again
-                                      if (!isLastAttempt) {
-                                        setTimeout(attempt, 2500);
-                                      } else {
-                                        if (bestPosition) resolve(bestPosition);
-                                        else reject(err);
-                                      }
-                                    },
-                                    options
-                                  );
-                                };
-
-                                attempt();
+                                }, timeoutMs);
                               });
                             };
 
                             try {
                               const pos = await getAccuratePosition({
                                 enableHighAccuracy: true,
-                                timeout: 15000,
+                                timeout: 20000,
                                 maximumAge: 0
-                              });
+                              }, 50, 15000);
 
                               handleInputChange('location.latitude', pos.coords.latitude);
                               handleInputChange('location.longitude', pos.coords.longitude);

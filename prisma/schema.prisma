@@ -34,6 +34,7 @@ model User {
   qrCodesCreated       QRCode[]              @relation("QRCodeCreator")
   schedules            Schedule[]
   refreshTokens        RefreshToken[]
+  quizSubmissions      QuizSubmission[]
 
   @@map("users")
 }
@@ -92,6 +93,7 @@ model Course {
   qrCodes           QRCode[]
   schedules         Schedule[]
   materials         CourseMaterial[]
+  quizzes           Quiz[]
 
   @@map("courses")
 }
@@ -450,4 +452,85 @@ enum AlertSeverity {
   MEDIUM
   HIGH
   CRITICAL
+}
+
+model Quiz {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String?
+  courseId    Int
+  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  isActive    Boolean  @default(false)
+  timeLimit   Int?     // in minutes
+  dueAt       DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  questions   Question[]
+  submissions QuizSubmission[]
+
+  @@index([courseId])
+  @@map("quizzes")
+}
+
+model Question {
+  id          Int      @id @default(autoincrement())
+  quizId      Int
+  quiz        Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  text        String
+  type        QuestionType @default(MULTIPLE_CHOICE)
+  points      Int      @default(1)
+  order       Int      @default(0)
+  options     Option[]
+  answers     StudentAnswer[]
+
+  @@index([quizId])
+  @@map("questions")
+}
+
+model Option {
+  id          Int      @id @default(autoincrement())
+  questionId  Int
+  question    Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  text        String
+  isCorrect   Boolean  @default(false)
+  
+  @@index([questionId])
+  @@map("options")
+}
+
+model QuizSubmission {
+  id          Int      @id @default(autoincrement())
+  quizId      Int
+  quiz        Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  studentId   Int
+  student     User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  score       Float
+  submittedAt DateTime @default(now())
+  answers     StudentAnswer[]
+
+  @@unique([quizId, studentId])
+  @@index([quizId])
+  @@index([studentId])
+  @@map("quiz_submissions")
+}
+
+model StudentAnswer {
+  id           Int            @id @default(autoincrement())
+  submissionId Int
+  submission   QuizSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  questionId   Int
+  question     Question       @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  selectedOptionId Int?
+  textAnswer    String?
+  isCorrect    Boolean        @default(false)
+
+  @@index([submissionId])
+  @@index([questionId])
+  @@map("student_answers")
+}
+
+enum QuestionType {
+  MULTIPLE_CHOICE
+  TRUE_FALSE
+  TEXT
 }

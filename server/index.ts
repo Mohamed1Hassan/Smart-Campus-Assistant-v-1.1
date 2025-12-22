@@ -18,6 +18,7 @@ import attendanceRouter from '../src/routes/attendance.routes.js';
 import professorSettingsRouter from '../src/routes/professor-settings.routes.js';
 import notificationRouter from '../src/routes/notification.routes.js';
 import materialRouter from '../src/routes/material.routes.js';
+import quizRouter from '../src/routes/quiz.routes.js';
 import { SocketService } from '../src/services/socket.service.js';
 import { initializeNotificationController } from '../src/controllers/notification.controller.js';
 import { setAttendanceSocketService } from '../src/routes/attendance.routes.js';
@@ -102,6 +103,7 @@ app.use('/api/attendance', attendanceRouter);
 app.use('/api/professor/settings', professorSettingsRouter);
 app.use('/api/notifications', notificationRouter);
 app.use('/api/materials', materialRouter);
+app.use('/api/quizzes', quizRouter);
 app.use('/api', chatRouter);
 
 // Temporary debug ping for chat

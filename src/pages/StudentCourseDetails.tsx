@@ -11,6 +11,7 @@ import {
     ArrowLeft, Clock, GraduationCap
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { QuizDashboard } from '../components/quiz/QuizDashboard';
 
 interface CourseDetails {
     id: number;
@@ -132,6 +133,12 @@ export default function StudentCourseDetails() {
                         >
                             Resources & Materials
                         </TabsTrigger>
+                        <TabsTrigger
+                            value="quizzes"
+                            className="data-[state=active]:border-b-2 data-[state=active]:border-indigo-600 data-[state=active]:shadow-none rounded-none px-6 py-3"
+                        >
+                            Quizzes
+                        </TabsTrigger>
                     </TabsList>
 
                     <TabsContent value="overview" className="space-y-6">
@@ -183,6 +190,10 @@ export default function StudentCourseDetails() {
                             courseId={course.id}
                             userRole="STUDENT"
                         />
+                    </TabsContent>
+
+                    <TabsContent value="quizzes" className="space-y-6">
+                        <QuizDashboard courseId={course.id} userRole="STUDENT" />
                     </TabsContent>
                 </Tabs>
             </div>
