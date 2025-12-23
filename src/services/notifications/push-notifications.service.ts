@@ -7,7 +7,8 @@ import {
   PushNotificationService,
   PushDelivery,
   NotificationRetryConfig,
-  NotificationRateLimit
+  NotificationRateLimit,
+  DeliveryStatus
 } from './types';
 
 /**
@@ -52,7 +53,7 @@ export class PushNotificationsService implements PushNotificationService {
 
       // Create push message
       const pushMessage = this.createPushMessage(to, title, body, data);
-      
+
       // Add to queue
       this.pushQueue.push(pushMessage);
 
@@ -71,7 +72,7 @@ export class PushNotificationsService implements PushNotificationService {
   /**
    * Subscribe user to push notifications
    */
-  public async subscribeUser(userId: number, subscription: PushSubscription): Promise<void> {
+  public async subscribeUser(userId: number, subscription: any): Promise<void> {
     try {
       // Validate subscription
       if (!this.validateSubscription(subscription)) {
@@ -80,7 +81,7 @@ export class PushNotificationsService implements PushNotificationService {
 
       // Store subscription
       this.subscriptions.set(userId, subscription);
-      
+
       // In a real implementation, you would store this in a database
       this.logInfo('User subscribed to push notifications', { userId });
     } catch (error) {
@@ -141,11 +142,11 @@ export class PushNotificationsService implements PushNotificationService {
    */
   public async sendBatch(messages: NotificationMessage[]): Promise<any> {
     const results: PushDelivery[] = [];
-    
+
     for (const message of messages) {
       try {
         const delivery = await this.send(message);
-        results.push(delivery as PushDelivery);
+        results.push(delivery as unknown as PushDelivery);
       } catch (error) {
         this.logError('Batch push failed', error, { messageId: message.id });
       }
@@ -189,7 +190,7 @@ export class PushNotificationsService implements PushNotificationService {
    * Get delivery history for a message
    */
   public async getDeliveryHistory(messageId: string): Promise<NotificationDelivery[]> {
-    return this.deliveryHistory.get(messageId) || [];
+    return (this.deliveryHistory.get(messageId) || []) as unknown as NotificationDelivery[];
   }
 
   /**
@@ -197,7 +198,7 @@ export class PushNotificationsService implements PushNotificationService {
    */
   private async processPush(message: NotificationMessage): Promise<PushDelivery> {
     const delivery = this.createPushDelivery(message);
-    
+
     try {
       message.status = NotificationStatus.SENDING;
       message.deliveryAttempts++;
@@ -210,7 +211,7 @@ export class PushNotificationsService implements PushNotificationService {
       message.deliveredAt = new Date();
       message.updatedAt = new Date();
 
-      delivery.status = 'DELIVERED';
+      delivery.status = DeliveryStatus.DELIVERED;
       delivery.deliveredAt = new Date();
 
       this.logInfo('Push notification delivered successfully', { messageId: message.id });
@@ -220,7 +221,7 @@ export class PushNotificationsService implements PushNotificationService {
       message.errorMessage = error instanceof Error ? error.message : 'Unknown error';
       message.updatedAt = new Date();
 
-      delivery.status = 'FAILED';
+      delivery.status = DeliveryStatus.FAILED;
       delivery.failedAt = new Date();
       delivery.errorMessage = error instanceof Error ? error.message : 'Unknown error';
 
@@ -247,7 +248,7 @@ export class PushNotificationsService implements PushNotificationService {
 
       // Prepare push payload
       const payload = this.createPushPayload(message);
-      
+
       // Send via web push
       const result = await this.webPush.sendNotification(subscription, JSON.stringify(payload), {
         TTL: this.pushConfig.ttl,
@@ -256,8 +257,8 @@ export class PushNotificationsService implements PushNotificationService {
       });
 
       delivery.response = result;
-      this.logInfo('Push notification sent', { 
-        messageId: message.id, 
+      this.logInfo('Push notification sent', {
+        messageId: message.id,
         userId: message.recipient.id,
         result: result
       });
@@ -404,7 +405,7 @@ export class PushNotificationsService implements PushNotificationService {
       id: this.generateDeliveryId(),
       messageId: message.id,
       to: message.recipient.email,
-      status: 'PENDING',
+      status: DeliveryStatus.PENDING,
       sentAt: new Date()
     };
   }
@@ -462,8 +463,8 @@ export class PushNotificationsService implements PushNotificationService {
    */
   private async processPushQueue(): Promise<void> {
     const pendingPushes = this.pushQueue.filter(
-      m => m.status === NotificationStatus.PENDING && 
-           (!m.scheduledAt || m.scheduledAt <= new Date())
+      m => m.status === NotificationStatus.PENDING &&
+        (!m.scheduledAt || m.scheduledAt <= new Date())
     );
 
     for (const push of pendingPushes.slice(0, 10)) { // Process up to 10 pushes at a time

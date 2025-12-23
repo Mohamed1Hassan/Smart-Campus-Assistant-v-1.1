@@ -9,7 +9,8 @@ import {
   EmailAttachment,
   EmailDelivery,
   NotificationRetryConfig,
-  NotificationRateLimit
+  NotificationRateLimit,
+  DeliveryStatus
 } from './types';
 
 /**
@@ -58,7 +59,7 @@ export class EmailNotificationsService implements EmailNotificationService {
 
       // Create email message
       const emailMessage = this.createEmailMessage(to, subject, content, options);
-      
+
       // Add to queue
       this.emailQueue.push(emailMessage);
 
@@ -91,7 +92,7 @@ export class EmailNotificationsService implements EmailNotificationService {
 
       // Render template
       const rendered = await this.templateEngine.renderTemplate(template, variables);
-      
+
       // Send email
       return this.sendEmail(to, rendered.subject, rendered.content, {
         from: template.from,
@@ -154,11 +155,11 @@ export class EmailNotificationsService implements EmailNotificationService {
    */
   public async sendBatch(messages: NotificationMessage[]): Promise<any> {
     const results: EmailDelivery[] = [];
-    
+
     for (const message of messages) {
       try {
         const delivery = await this.send(message);
-        results.push(delivery as EmailDelivery);
+        results.push(delivery as unknown as EmailDelivery);
       } catch (error) {
         this.logError('Batch email failed', error, { messageId: message.id });
       }
@@ -202,7 +203,7 @@ export class EmailNotificationsService implements EmailNotificationService {
    * Get delivery history for a message
    */
   public async getDeliveryHistory(messageId: string): Promise<NotificationDelivery[]> {
-    return this.deliveryHistory.get(messageId) || [];
+    return (this.deliveryHistory.get(messageId) || []) as unknown as NotificationDelivery[];
   }
 
   /**
@@ -210,7 +211,7 @@ export class EmailNotificationsService implements EmailNotificationService {
    */
   private async processEmail(message: NotificationMessage): Promise<EmailDelivery> {
     const delivery = this.createEmailDelivery(message);
-    
+
     try {
       message.status = NotificationStatus.SENDING;
       message.deliveryAttempts++;
@@ -223,7 +224,7 @@ export class EmailNotificationsService implements EmailNotificationService {
       message.deliveredAt = new Date();
       message.updatedAt = new Date();
 
-      delivery.status = 'DELIVERED';
+      delivery.status = DeliveryStatus.DELIVERED;
       delivery.deliveredAt = new Date();
 
       this.logInfo('Email delivered successfully', { messageId: message.id });
@@ -233,7 +234,7 @@ export class EmailNotificationsService implements EmailNotificationService {
       message.errorMessage = error instanceof Error ? error.message : 'Unknown error';
       message.updatedAt = new Date();
 
-      delivery.status = 'FAILED';
+      delivery.status = DeliveryStatus.FAILED;
       delivery.failedAt = new Date();
       delivery.errorMessage = error instanceof Error ? error.message : 'Unknown error';
 
@@ -273,8 +274,8 @@ export class EmailNotificationsService implements EmailNotificationService {
         rejected: []
       };
 
-      this.logInfo('Email sent via SMTP', { 
-        messageId: message.id, 
+      this.logInfo('Email sent via SMTP', {
+        messageId: message.id,
         to: message.recipient.email,
         smtpMessageId: delivery.response.messageId
       });
@@ -380,7 +381,7 @@ export class EmailNotificationsService implements EmailNotificationService {
       id: this.generateDeliveryId(),
       messageId: message.id,
       to: message.recipient.email,
-      status: 'PENDING',
+      status: DeliveryStatus.PENDING,
       sentAt: new Date()
     };
   }
@@ -422,8 +423,8 @@ export class EmailNotificationsService implements EmailNotificationService {
    */
   private async processEmailQueue(): Promise<void> {
     const pendingEmails = this.emailQueue.filter(
-      m => m.status === NotificationStatus.PENDING && 
-           (!m.scheduledAt || m.scheduledAt <= new Date())
+      m => m.status === NotificationStatus.PENDING &&
+        (!m.scheduledAt || m.scheduledAt <= new Date())
     );
 
     for (const email of pendingEmails.slice(0, 5)) { // Process up to 5 emails at a time
@@ -654,6 +655,9 @@ interface EmailTemplate {
   version: string;
   subject?: string;
   content: string;
+  from?: string;
+  replyTo?: string;
+  priority?: 'LOW' | 'NORMAL' | 'HIGH';
   variables: Array<{
     name: string;
     type: string;

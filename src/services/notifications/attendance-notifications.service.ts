@@ -15,7 +15,9 @@ import {
   NotificationDelivery,
   NotificationBatch,
   NotificationRetryConfig,
-  NotificationRateLimit
+  NotificationRateLimit,
+  BatchStatus,
+  DeliveryStatus
 } from './types';
 
 /**
@@ -240,7 +242,7 @@ export class AttendanceNotificationsService implements NotificationService {
       id: batchId,
       name: `Batch_${batchId}`,
       messages,
-      status: 'PENDING',
+      status: BatchStatus.PENDING,
       createdAt: new Date()
     };
 
@@ -255,22 +257,22 @@ export class AttendanceNotificationsService implements NotificationService {
         const batch = messages.slice(i, i + concurrencyLimit);
         const promises = batch.map(message => this.send(message));
         const batchResults = await Promise.allSettled(promises);
-        
+
         results.push(...batchResults
           .filter(result => result.status === 'fulfilled')
           .map(result => (result as PromiseFulfilledResult<NotificationDelivery>).value)
         );
       }
 
-      batch.status = 'COMPLETED';
+      batch.status = BatchStatus.COMPLETED;
       batch.completedAt = new Date();
 
       return batch;
     } catch (error) {
-      batch.status = 'FAILED';
+      batch.status = BatchStatus.FAILED;
       batch.failedAt = new Date();
       batch.errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      
+
       this.logError('Batch processing failed', error, { batchId });
       throw error;
     }
@@ -320,7 +322,7 @@ export class AttendanceNotificationsService implements NotificationService {
    */
   private async processMessage(message: NotificationMessage): Promise<NotificationDelivery> {
     const delivery = this.createDeliveryRecord(message);
-    
+
     try {
       message.status = NotificationStatus.SENDING;
       message.deliveryAttempts++;
@@ -335,7 +337,7 @@ export class AttendanceNotificationsService implements NotificationService {
       message.deliveredAt = new Date();
       message.updatedAt = new Date();
 
-      delivery.status = 'DELIVERED';
+      delivery.status = DeliveryStatus.DELIVERED;
       delivery.deliveredAt = new Date();
 
       this.logInfo('Notification delivered successfully', { messageId: message.id });
@@ -345,7 +347,7 @@ export class AttendanceNotificationsService implements NotificationService {
       message.errorMessage = error instanceof Error ? error.message : 'Unknown error';
       message.updatedAt = new Date();
 
-      delivery.status = 'FAILED';
+      delivery.status = DeliveryStatus.FAILED;
       delivery.failedAt = new Date();
       delivery.errorMessage = error instanceof Error ? error.message : 'Unknown error';
 
@@ -449,8 +451,8 @@ export class AttendanceNotificationsService implements NotificationService {
    */
   private async processMessageQueue(): Promise<void> {
     const pendingMessages = this.messageQueue.filter(
-      m => m.status === NotificationStatus.PENDING && 
-           (!m.scheduledAt || m.scheduledAt <= new Date())
+      m => m.status === NotificationStatus.PENDING &&
+        (!m.scheduledAt || m.scheduledAt <= new Date())
     );
 
     for (const message of pendingMessages.slice(0, 10)) { // Process up to 10 messages at a time
@@ -479,7 +481,7 @@ export class AttendanceNotificationsService implements NotificationService {
       id: this.generateDeliveryId(),
       messageId: message.id,
       channel: message.channels[0], // Simplified - would handle multiple channels
-      status: 'PENDING',
+      status: DeliveryStatus.PENDING,
       attemptNumber: message.deliveryAttempts + 1,
       attemptedAt: new Date(),
       metadata: {}
@@ -560,7 +562,7 @@ export class AttendanceNotificationsService implements NotificationService {
         EXCUSED: `Your absence has been excused for session ${data.sessionId}.`
       }
     };
-    
+
     const template = templates[language] || templates.en;
     return template[data.status] || `Attendance ${data.status} for session ${data.sessionId}.`;
   }

@@ -453,6 +453,7 @@ export interface PushDelivery {
   status: DeliveryStatus;
   sentAt: Date;
   deliveredAt?: Date;
+  failedAt?: Date;
   errorMessage?: string;
   response?: any;
 }

@@ -130,7 +130,7 @@ export const createNetworkError = (message: string, context: ErrorContext = {}):
 export const createAPIError = (message: string, statusCode: number, context: ErrorContext = {}): AppError => {
   const severity = statusCode >= 500 ? ErrorSeverity.HIGH : ErrorSeverity.MEDIUM;
   const retryable = statusCode >= 500 || statusCode === 429;
-  
+
   return new AppError(
     message,
     `API_ERROR_${statusCode}`,
@@ -177,8 +177,20 @@ export const createTimeoutError = (message: string, timeout: number, context: Er
     ErrorSeverity.MEDIUM,
     { ...context, timeout },
     true,
-    'The request timed out. Please try again.',
     'Try again'
+  );
+};
+
+export const createSecurityError = (message: string, context: ErrorContext = {}): AppError => {
+  return new AppError(
+    message,
+    'SECURITY_ERROR',
+    ErrorType.AUTHORIZATION,
+    ErrorSeverity.HIGH,
+    context,
+    false,
+    'A security check failed. Please refresh the page and try again.',
+    'Refresh verification'
   );
 };
 
@@ -333,14 +345,14 @@ export const retryWithBackoff = async <T>(
       return await fn();
     } catch (error) {
       lastError = error as Error;
-      
+
       if (attempt === maxRetries) {
         throw lastError;
       }
 
       // Calculate delay with exponential backoff
       const delay = Math.min(baseDelay * Math.pow(2, attempt), maxDelay);
-      
+
       // Add jitter to prevent thundering herd
       const jitter = Math.random() * 0.1 * delay;
       const totalDelay = delay + jitter;
@@ -357,7 +369,7 @@ export const ErrorRecoveryStrategies = {
   retry: (fn: () => Promise<any>, maxRetries: number = 3) => {
     return retryWithBackoff(fn, maxRetries);
   },
-  
+
   fallback: <T>(fn: () => Promise<T>, fallbackValue: T) => {
     return async (): Promise<T> => {
       try {
@@ -367,7 +379,7 @@ export const ErrorRecoveryStrategies = {
       }
     };
   },
-  
+
   cache: <T>(fn: () => Promise<T>, cacheKey: string, ttl: number = 300000) => {
     return async (): Promise<T> => {
       try {

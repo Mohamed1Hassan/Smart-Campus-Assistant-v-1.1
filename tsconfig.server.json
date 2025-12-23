@@ -53,6 +53,8 @@
     "src/services/api.ts",
     "src/services/security/**/*",
     "**/*.tsx",
-    "**/*.test.ts"
+    "**/*.test.ts",
+    "config/frontend-env.ts",
+    "config/database-example.ts"
   ]
 }
