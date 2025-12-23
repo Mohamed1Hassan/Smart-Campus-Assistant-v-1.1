@@ -130,6 +130,23 @@ export class AIService {
       systemStatus: 'operational'
     };
 
+    // Add User Specific Context if userId is available in context (need to ensure caller passes it)
+    // For now assuming context.userProfile has it or we can find it. 
+    // Actually, let's add userId to ContextEnhancement in types first or relies on caller?
+    // The current ContextEnhancement doesn't have userId.
+    // I will add userId to ContextEnhancement in types.ts in a separate step or just cast it here.
+    const userId = (context as any).userId;
+
+    if (userId) {
+      enhanced.grades = await this.getUserGrades(userId);
+      enhanced.attendanceSummary = await this.getUserAttendanceSummary(userId);
+
+      // Also enhance userCourses with real schedule if not present
+      if (!enhanced.userCourses) {
+        enhanced.userCourses = await this.getUserCourses(userId);
+      }
+    }
+
     return enhanced;
   }
 
@@ -278,9 +295,27 @@ DO NOT:
       context.userCourses.forEach((course, index) => {
         userContext += `${index + 1}. ${course.courseName} (${course.courseCode})
    - Professor: ${course.professorName}
-   - Schedule: ${course.schedule?.length || 0} sessions
+   - Schedule: ${JSON.stringify(course.schedule)}
    - Assignments: ${course.assignments?.length || 0} active
    - Announcements: ${course.announcements?.length || 0} recent\n`;
+      });
+      userContext += '\n';
+    }
+
+    // Add academic performance (Grades)
+    if (context.grades && context.grades.length > 0) {
+      userContext += `ACADEMIC PERFORMANCE (RECENT GRADES):\n`;
+      context.grades.forEach(grade => {
+        userContext += `- ${grade.courseName} (${grade.courseCode}): ${grade.quizTitle} - ${grade.score}\n`;
+      });
+      userContext += '\n';
+    }
+
+    // Add attendance summary
+    if (context.attendanceSummary && context.attendanceSummary.length > 0) {
+      userContext += `ATTENDANCE SUMMARY:\n`;
+      context.attendanceSummary.forEach(att => {
+        userContext += `- ${att.courseName}: ${att.attendancePercentage.toFixed(1)}% (${att.present} Present, ${att.absent} Absent)\n`;
       });
       userContext += '\n';
     }
@@ -780,6 +815,92 @@ DO NOT:
     };
     return (suggestions as any)[language] || suggestions.en;
   }
+
+  /**
+   * Get user grades from QuizSubmissions
+   */
+  private async getUserGrades(userId: number) {
+    const submissions = await this.prisma.quizSubmission.findMany({
+      where: { studentId: userId },
+      include: {
+        quiz: {
+          include: { course: true }
+        }
+      },
+      orderBy: { submittedAt: 'desc' },
+      take: 5
+    });
+
+    return submissions.map(sub => ({
+      courseName: sub.quiz.course.courseName,
+      courseCode: sub.quiz.course.courseCode,
+      quizTitle: sub.quiz.title,
+      score: sub.score,
+      submittedAt: sub.submittedAt
+    }));
+  }
+
+  /**
+   * Get attendance summary
+   */
+  private async getUserAttendanceSummary(userId: number) {
+    const enrollments = await this.prisma.courseEnrollment.findMany({
+      where: { studentId: userId, status: 'ACTIVE' },
+      include: { course: true }
+    });
+
+    const summary = [];
+
+    for (const enrollment of enrollments) {
+      const records = await this.prisma.attendanceRecord.findMany({
+        where: { studentId: userId, courseId: enrollment.courseId }
+      });
+
+      const present = records.filter(r => r.status === 'PRESENT').length;
+      const absent = records.filter(r => r.status === 'ABSENT').length;
+      const late = records.filter(r => r.status === 'LATE').length;
+      const total = records.length;
+
+      summary.push({
+        courseName: enrollment.course.courseName,
+        courseCode: enrollment.course.courseCode,
+        present,
+        absent,
+        late,
+        attendancePercentage: total > 0 ? (present / total) * 100 : 100
+      });
+    }
+
+    return summary;
+  }
+
+  /**
+   * Get user courses with schedule
+   */
+  private async getUserCourses(userId: number) {
+    const enrollments = await this.prisma.courseEnrollment.findMany({
+      where: { studentId: userId, status: 'ACTIVE' },
+      include: {
+        course: {
+          include: {
+            schedules: true,
+            professor: true
+          }
+        }
+      }
+    });
+
+    return enrollments.map(e => ({
+      courseId: e.course.id,
+      courseCode: e.course.courseCode,
+      courseName: e.course.courseName,
+      professorName: `${e.course.professor.firstName} ${e.course.professor.lastName}`,
+      schedule: e.course.schedules,
+      assignments: [],
+      announcements: []
+    }));
+  }
+
 
   /**
    * Get current semester

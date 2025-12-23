@@ -154,6 +154,21 @@ export interface ContextEnhancement {
     sessionContext?: any;
     [key: string]: any;
   };
+  grades?: Array<{
+    courseName: string;
+    courseCode: string;
+    score: number;
+    quizTitle: string;
+    submittedAt: Date;
+  }>;
+  attendanceSummary?: Array<{
+    courseName: string;
+    courseCode: string;
+    present: number;
+    absent: number;
+    late: number;
+    attendancePercentage: number;
+  }>;
 }
 
 export class ChatbotError extends Error {

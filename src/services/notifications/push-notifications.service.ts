@@ -10,6 +10,7 @@ import {
   NotificationRateLimit,
   DeliveryStatus
 } from './types';
+import * as webpush from 'web-push';
 
 /**
  * Push Notifications Service
@@ -415,23 +416,13 @@ export class PushNotificationsService implements PushNotificationService {
    */
   private initializeWebPush(): void {
     try {
-      // In a real implementation, you would initialize the web-push library
-      // const webpush = require('web-push');
-      // webpush.setVapidDetails(
-      //   this.pushConfig.vapid.subject,
-      //   this.pushConfig.vapid.publicKey,
-      //   this.pushConfig.vapid.privateKey
-      // );
-      // this.webPush = webpush;
-
-      // For now, create a mock web push instance
-      this.webPush = {
-        sendNotification: async (subscription: any, payload: string, options: any) => {
-          // Simulate push notification sending
-          await new Promise(resolve => setTimeout(resolve, 500));
-          return { statusCode: 201, headers: {}, body: 'OK' };
-        }
-      };
+      // Initialize web-push library
+      webpush.setVapidDetails(
+        this.pushConfig.vapid.subject,
+        this.pushConfig.vapid.publicKey,
+        this.pushConfig.vapid.privateKey
+      );
+      this.webPush = webpush;
 
       this.logInfo('Web push initialized', { vapidSubject: this.pushConfig.vapid.subject });
     } catch (error) {

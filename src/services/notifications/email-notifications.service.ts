@@ -12,6 +12,7 @@ import {
   NotificationRateLimit,
   DeliveryStatus
 } from './types';
+import * as nodemailer from 'nodemailer';
 
 /**
  * Email Notifications Service
@@ -24,6 +25,7 @@ export class EmailNotificationsService implements EmailNotificationService {
   private deliveryHistory: Map<string, EmailDelivery[]> = new Map();
   private smtpConfig: SMTPConfig;
   private templateEngine: EmailTemplateEngine;
+  private transporter: nodemailer.Transporter;
 
   constructor(
     retryConfig: NotificationRetryConfig,
@@ -34,6 +36,17 @@ export class EmailNotificationsService implements EmailNotificationService {
     this.rateLimit = rateLimit;
     this.smtpConfig = smtpConfig;
     this.templateEngine = new EmailTemplateEngine();
+
+    this.transporter = nodemailer.createTransport({
+      host: smtpConfig.host,
+      port: smtpConfig.port,
+      secure: smtpConfig.secure,
+      auth: {
+        user: smtpConfig.auth.user,
+        pass: smtpConfig.auth.pass,
+      },
+    });
+
     this.startEmailProcessor();
   }
 
@@ -254,30 +267,23 @@ export class EmailNotificationsService implements EmailNotificationService {
    */
   private async sendViaSMTP(message: NotificationMessage, delivery: EmailDelivery): Promise<void> {
     try {
-      // Simulate SMTP sending
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // In a real implementation, you would use a library like nodemailer
-      const emailData = {
+      const emailOptions: nodemailer.SendMailOptions = {
+        from: this.smtpConfig.from,
         to: message.recipient.email,
+        replyTo: this.smtpConfig.replyTo,
         subject: message.subject,
         html: this.formatEmailContent(message.content),
-        from: this.smtpConfig.from,
-        replyTo: this.smtpConfig.replyTo,
         attachments: this.processAttachments(message.data?.attachments || [])
       };
 
-      // Simulate SMTP response
-      delivery.response = {
-        messageId: `<${Date.now()}@${this.smtpConfig.host}>`,
-        accepted: [message.recipient.email],
-        rejected: []
-      };
+      const info = await this.transporter.sendMail(emailOptions);
+
+      delivery.response = info;
 
       this.logInfo('Email sent via SMTP', {
         messageId: message.id,
         to: message.recipient.email,
-        smtpMessageId: delivery.response.messageId
+        smtpMessageId: info.messageId
       });
     } catch (error) {
       throw new Error(`SMTP delivery failed: ${error instanceof Error ? error.message : 'Unknown error'}`);

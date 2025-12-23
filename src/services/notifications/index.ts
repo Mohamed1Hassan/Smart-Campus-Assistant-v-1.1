@@ -19,6 +19,8 @@ import {
 export { AttendanceNotificationsService, EmailNotificationsService, PushNotificationsService, NotificationTemplatesService };
 export * from './types';
 
+import { notificationConfig } from '../../config/notification.config';
+
 // Notification Service Factory
 export class NotificationServiceFactory {
   private static instance: NotificationServiceFactory;
@@ -29,11 +31,8 @@ export class NotificationServiceFactory {
     this.config = config;
   }
 
-  public static getInstance(config?: NotificationConfig): NotificationServiceFactory {
+  public static getInstance(config: NotificationConfig = notificationConfig): NotificationServiceFactory {
     if (!NotificationServiceFactory.instance) {
-      if (!config) {
-        throw new Error('NotificationServiceFactory requires configuration on first initialization');
-      }
       NotificationServiceFactory.instance = new NotificationServiceFactory(config);
     }
     return NotificationServiceFactory.instance;
