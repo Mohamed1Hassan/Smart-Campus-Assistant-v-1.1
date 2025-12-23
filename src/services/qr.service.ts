@@ -36,11 +36,16 @@ export class QRService {
       const qrCodeRecord = await prisma.qRCode.create({
         data: {
           sessionId: data.sessionId,
-          courseId: data.courseId,
-          professorId: data.professorId,
+          sessionId: data.sessionId,
+          course: { connect: { id: data.courseId } },
+          professor: { connect: { id: data.professorId } },
           title: data.title,
           description: data.description,
           expiresAt: data.expiresAt,
+          latitude: 0,
+          longitude: 0,
+          validFrom: new Date(),
+          validTo: data.expiresAt,
         },
       });
 

@@ -7,6 +7,7 @@ import {
   NotificationUser,
   NotificationType,
   NotificationChannel,
+  NotificationChannelType,
   NotificationDelivery,
   AttendanceNotificationData,
   FraudAlertNotificationData,
@@ -116,7 +117,7 @@ export class NotificationManager {
     user: NotificationUser,
     type: NotificationType,
     data: any,
-    channels: NotificationChannel[] = ['EMAIL', 'PUSH', 'IN_APP']
+    channels: NotificationChannelType[] = [NotificationChannelType.EMAIL, NotificationChannelType.PUSH, NotificationChannelType.IN_APP]
   ): Promise<NotificationDelivery[]> {
     const deliveries: NotificationDelivery[] = [];
 
@@ -144,7 +145,7 @@ export class NotificationManager {
                 content: rendered,
                 data,
                 channels: [{ type: 'EMAIL', enabled: true, priority: { level: 'MEDIUM', escalation: { enabled: false, delay: 0, escalateTo: [] } } }],
-                status: 'PENDING',
+                status: NotificationStatus.PENDING,
                 deliveryAttempts: 0,
                 maxRetries: 3,
                 createdAt: new Date(),

@@ -135,11 +135,12 @@ const sendNotification = async (userId: string, type: string, message: string, d
   try {
     await prisma.notification.create({
       data: {
-        id: uuidv4(),
-        userId,
-        type,
+        userId: parseInt(userId),
+        type: type as any,
+        title: 'Notification',
+        category: 'SYSTEM' as any,
         message,
-        data: data || {},
+        metadata: data || {},
         isRead: false,
         createdAt: new Date()
       }
@@ -878,7 +879,7 @@ export const markAttendance = async (req: AuthenticatedRequest, res: Response, n
         data: {
           sessionId,
           studentId,
-          timestamp: new Date(),
+          markedAt: new Date(),
           status,
           notes,
           createdAt: new Date(),
@@ -1063,15 +1064,16 @@ export const verifyLocation = async (req: AuthenticatedRequest, res: Response, n
       });
     }
 
+    const sessionLoc = session.location as any;
     const distance = calculateDistance(
       latitude,
       longitude,
-      session.location.latitude,
-      session.location.longitude
+      sessionLoc.latitude,
+      sessionLoc.longitude
     );
 
-    const isWithinRadius = distance <= session.location.radius;
-    const fraudScore = isWithinRadius ? 0 : Math.min(100, (distance / session.location.radius) * 100);
+    const isWithinRadius = distance <= sessionLoc.radius;
+    const fraudScore = isWithinRadius ? 0 : Math.min(100, (distance / sessionLoc.radius) * 100);
 
     // Log location verification
     await logActivity(req.user!.id, 'LOCATION_VERIFIED', {
@@ -1086,7 +1088,7 @@ export const verifyLocation = async (req: AuthenticatedRequest, res: Response, n
       data: {
         isWithinRadius,
         distance,
-        requiredRadius: session.location.radius,
+        requiredRadius: (session.location as any).radius,
         accuracy,
         fraudScore
       }
