@@ -498,7 +498,7 @@ export const startSession = async (req: AuthenticatedRequest, res: Response, nex
       });
     }
 
-    if (session.professorId !== req.user!.id) {
+    if (session.professorId !== parseInt(req.user!.id)) {
       return res.status(403).json({
         success: false,
         error: 'Access denied'
@@ -755,11 +755,7 @@ export const scanQRCode = async (req: AuthenticatedRequest, res: Response, next:
         data: {
           status: 'PRESENT',
           markedAt: new Date(),
-          location: location ? {
-            latitude: location.latitude,
-            longitude: location.longitude,
-            accuracy: location.accuracy
-          } : undefined,
+          location: location ? location as any : undefined,
           deviceFingerprint,
           fraudScore,
           updatedAt: new Date()
@@ -769,19 +765,14 @@ export const scanQRCode = async (req: AuthenticatedRequest, res: Response, next:
       // Create new record
       attendanceRecord = await prisma.attendanceRecord.create({
         data: {
-          sessionId,
-          studentId: userId,
+          session: { connect: { id: sessionId } },
+          student: { connect: { id: userId } },
+          course: { connect: { id: session.courseId } },
           markedAt: new Date(),
           status: 'PRESENT',
-          location: location ? {
-            latitude: location.latitude,
-            longitude: location.longitude,
-            accuracy: location.accuracy
-          } : undefined,
+          location: location ? location as any : undefined,
           deviceFingerprint,
           fraudScore,
-          createdAt: new Date(),
-          updatedAt: new Date()
         }
       });
     }
@@ -877,13 +868,12 @@ export const markAttendance = async (req: AuthenticatedRequest, res: Response, n
       // Create new record
       const attendanceRecord = await prisma.attendanceRecord.create({
         data: {
-          sessionId,
-          studentId,
+          session: { connect: { id: sessionId } },
+          student: { connect: { id: studentId } },
+          course: { connect: { id: session.courseId } },
           markedAt: new Date(),
           status,
           notes,
-          createdAt: new Date(),
-          updatedAt: new Date()
         }
       });
 
@@ -942,7 +932,7 @@ export const getAttendanceStatus = async (req: AuthenticatedRequest, res: Respon
     }
 
     // Check access permissions
-    if (req.user!.role === 'PROFESSOR' && session.professorId !== req.user!.id) {
+    if (req.user!.role === 'PROFESSOR' && session.professorId !== parseInt(req.user!.id)) {
       return res.status(403).json({
         success: false,
         error: 'Access denied'
@@ -1001,14 +991,21 @@ export const updateAttendanceRecord = async (req: AuthenticatedRequest, res: Res
     }
 
     // Check access permissions
-    if (req.user!.role === 'PROFESSOR' && record.session.professorId !== req.user!.id) {
+    if (!record.session) {
+      return res.status(500).json({
+        success: false,
+        error: 'Record has no associated session'
+      });
+    }
+
+    if (req.user!.role === 'PROFESSOR' && record.session.professorId !== parseInt(req.user!.id)) {
       return res.status(403).json({
         success: false,
         error: 'Access denied'
       });
     }
 
-    if (req.user!.role === 'STUDENT' && record.studentId !== req.user!.id) {
+    if (req.user!.role === 'STUDENT' && record.studentId !== parseInt(req.user!.id)) {
       return res.status(403).json({
         success: false,
         error: 'Access denied'
@@ -1018,7 +1015,8 @@ export const updateAttendanceRecord = async (req: AuthenticatedRequest, res: Res
     const updatedRecord = await prisma.attendanceRecord.update({
       where: { id: recordId },
       data: {
-        ...req.body,
+        status: req.body.status,
+        notes: req.body.notes,
         updatedAt: new Date()
       }
     });
@@ -1106,7 +1104,7 @@ export const verifyDevice = async (req: AuthenticatedRequest, res: Response, nex
     const device = await prisma.deviceFingerprint.findFirst({
       where: {
         fingerprint: deviceFingerprint,
-        studentId: req.user!.id,
+        studentId: parseInt(req.user!.id),
         isActive: true
       }
     });
@@ -1168,7 +1166,7 @@ export const uploadPhoto = async (req: AuthenticatedRequest, res: Response, next
       });
     }
 
-    if (!session.securitySettings.requirePhoto) {
+    if (!(session.securitySettings as any).requirePhoto) {
       return res.status(400).json({
         success: false,
         error: 'Session does not require photo verification'
@@ -1319,7 +1317,7 @@ export const reportFraud = async (req: AuthenticatedRequest, res: Response, next
     });
 
     // Send notification to professor
-    await sendNotification(session.professorId, 'FRAUD_ALERT',
+    await sendNotification(session.professorId.toString(), 'FRAUD_ALERT',
       `New fraud alert reported: ${description}`, {
       alertId: fraudAlert.id,
       studentId: req.user!.id,
@@ -1410,15 +1408,14 @@ export const getAnalytics = async (req: AuthenticatedRequest, res: Response, nex
 
     // Apply date filters
     if (startDate) {
-      where.timestamp = {
-        ...where.timestamp,
+      where.markedAt = {
         gte: new Date(startDate as string)
       };
     }
 
     if (endDate) {
-      where.timestamp = {
-        ...where.timestamp,
+      where.markedAt = {
+        ...where.markedAt,
         lte: new Date(endDate as string)
       };
     }
@@ -1443,7 +1440,7 @@ export const getAnalytics = async (req: AuthenticatedRequest, res: Response, nex
           }
         }
       },
-      orderBy: { timestamp: 'asc' }
+      orderBy: { markedAt: 'asc' }
     });
 
     // Calculate analytics
@@ -1457,7 +1454,7 @@ export const getAnalytics = async (req: AuthenticatedRequest, res: Response, nex
 
     // Group by time period
     const groupedData = records.reduce((acc, record) => {
-      const date = new Date(record.timestamp);
+      const date = new Date(record.markedAt);
       let key: string;
 
       switch (groupBy) {
@@ -1518,6 +1515,19 @@ export const getAnalytics = async (req: AuthenticatedRequest, res: Response, nex
   }
 };
 
+interface SecurityMetrics {
+  totalSessions: number;
+  totalAttendance: number;
+  fraudAttempts: number;
+  securityScore: number;
+  riskLevel: 'LOW' | 'MEDIUM' | 'HIGH';
+  trends: {
+    attendance: any[];
+    fraud: any[];
+    security: any[];
+  };
+}
+
 export const getSecurityMetrics = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     const { startDate, endDate } = req.query;
@@ -1548,7 +1558,7 @@ export const getSecurityMetrics = async (req: AuthenticatedRequest, res: Respons
 
     // Get security metrics
     const [totalSessions, totalAttendance, fraudAttempts, securityScore] = await Promise.all([
-      prisma.attendanceSession.count({ where: { professorId: req.user!.id } }),
+      prisma.attendanceSession.count({ where: { professorId: parseInt(req.user!.id) } }),
       prisma.attendanceRecord.count({ where }),
       prisma.fraudAlert.count({ where }),
       prisma.attendanceRecord.aggregate({
@@ -1562,12 +1572,14 @@ export const getSecurityMetrics = async (req: AuthenticatedRequest, res: Respons
       })
     ]);
 
+    const avgScore = securityScore._avg.fraudScore || 0;
+
     const metrics: SecurityMetrics = {
       totalSessions,
       totalAttendance,
       fraudAttempts,
-      securityScore: securityScore._avg.fraudScore ? Math.round(securityScore._avg.fraudScore * 100) / 100 : 0,
-      riskLevel: securityScore._avg.fraudScore > 70 ? 'HIGH' : securityScore._avg.fraudScore > 40 ? 'MEDIUM' : 'LOW',
+      securityScore: Math.round(avgScore * 100) / 100,
+      riskLevel: avgScore > 70 ? 'HIGH' : avgScore > 40 ? 'MEDIUM' : 'LOW',
       trends: {
         // Note: Trend calculation not yet implemented
         // Future: Implement 7-day rolling average trend analysis
@@ -1650,7 +1662,7 @@ export const registerDevice = async (req: AuthenticatedRequest, res: Response, n
     const existingDevice = await prisma.deviceFingerprint.findFirst({
       where: {
         fingerprint: deviceFingerprint,
-        studentId: req.user!.id
+        studentId: parseInt(req.user!.id)
       }
     });
 
@@ -1664,7 +1676,7 @@ export const registerDevice = async (req: AuthenticatedRequest, res: Response, n
     // Check device limit
     const deviceCount = await prisma.deviceFingerprint.count({
       where: {
-        studentId: req.user!.id,
+        studentId: parseInt(req.user!.id),
         isActive: true
       }
     });
@@ -1678,8 +1690,7 @@ export const registerDevice = async (req: AuthenticatedRequest, res: Response, n
 
     const device = await prisma.deviceFingerprint.create({
       data: {
-        id: uuidv4(),
-        studentId: req.user!.id,
+        student: { connect: { id: parseInt(req.user!.id) } },
         fingerprint: deviceFingerprint,
         deviceInfo: {
           ...deviceInfo,
@@ -1717,7 +1728,7 @@ export const getDevices = async (req: AuthenticatedRequest, res: Response, next:
     const [devices, total] = await Promise.all([
       prisma.deviceFingerprint.findMany({
         where: {
-          studentId: req.user!.id
+          studentId: parseInt(req.user!.id)
         },
         skip: offset,
         take: limit,
@@ -1725,7 +1736,7 @@ export const getDevices = async (req: AuthenticatedRequest, res: Response, next:
       }),
       prisma.deviceFingerprint.count({
         where: {
-          studentId: req.user!.id
+          studentId: parseInt(req.user!.id)
         }
       })
     ]);
@@ -1750,7 +1761,7 @@ export const getDevices = async (req: AuthenticatedRequest, res: Response, next:
 
 export const removeDevice = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
-    const deviceId = req.params.id;
+    const deviceId = parseInt(req.params.id);
 
     const device = await prisma.deviceFingerprint.findUnique({
       where: { id: deviceId }
@@ -1763,7 +1774,7 @@ export const removeDevice = async (req: AuthenticatedRequest, res: Response, nex
       });
     }
 
-    if (device.studentId !== req.user!.id) {
+    if (device.studentId !== parseInt(req.user!.id)) {
       return res.status(403).json({
         success: false,
         error: 'Access denied'
@@ -1777,7 +1788,7 @@ export const removeDevice = async (req: AuthenticatedRequest, res: Response, nex
     // Log device removal
     await logActivity(req.user!.id, 'DEVICE_REMOVED', {
       deviceId,
-      deviceName: device.deviceInfo.name || 'Unknown Device'
+      deviceName: (device.deviceInfo as any).name || 'Unknown Device'
     });
 
     res.json({

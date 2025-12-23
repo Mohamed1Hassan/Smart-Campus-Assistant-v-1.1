@@ -183,7 +183,7 @@ export const csrfProtection = (req: Request, res: Response, next: NextFunction) 
 
   // Check for CSRF token
   const token = req.headers['x-csrf-token'] || req.body._csrf;
-  const sessionToken = req.session?.csrfToken;
+  const sessionToken = (req as any).session?.csrfToken;
 
   if (!token || !sessionToken || token !== sessionToken) {
     const error = createSecurityError('CSRF token mismatch', { 
