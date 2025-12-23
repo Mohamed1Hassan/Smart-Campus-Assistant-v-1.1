@@ -28,18 +28,31 @@
     "server/**/*",
     "config/**/*",
     "src/controllers/**/*",
-    "src/services/**/*",
     "src/routes/**/*",
     "src/middleware/**/*",
-    "src/utils/**/*",
-    "src/config/**/*",
+    "src/services/auth.service.ts",
+    "src/services/email.service.ts",
+    "src/services/notification.service.ts",
+    "src/services/notifications/**/*",
+    "src/services/qr.service.ts",
+    "src/services/quiz.server.service.ts",
+    "src/services/schedule.service.ts",
+    "src/services/user.service.ts",
+    "src/services/socket.service.ts",
+    "src/utils/asyncHandler.ts",
+    "src/utils/errorHandler.ts",
+    "src/utils/jwt.ts",
+    "src/utils/encryption.ts",
+    "src/utils/logger.ts",
+    "src/utils/validation.ts",
     "src/types/**/*"
   ],
   "exclude": [
     "node_modules",
     "dist",
-    "config/frontend-env.ts",
-    "config/upstash.ts",
-    "config/database-example.ts"
+    "src/services/api.ts",
+    "src/services/security/**/*",
+    "**/*.tsx",
+    "**/*.test.ts"
   ]
 }
